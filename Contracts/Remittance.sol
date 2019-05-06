@@ -4,34 +4,27 @@ import "./Pausable.sol";
 
 contract Remittance is Pausable {
 
-    mapping(address => uint) public balances;
-    address carolAddress;
     bytes32 keyHash;
+    uint blockExpiration;
 
     event LogWithdrawal(address indexed receiver, uint amount);
     event LogKillExecuted(address owner, uint refund);
 
     // keyHash generated offchain
-    constructor (bytes32 _keyHash, address _carolAddress) public payable {
-        carolAddress = _carolAddress;
+    constructor (bytes32 _keyHash, uint daysValid) public payable {
         keyHash = _keyHash;
-        balances[carolAddress] = msg.value;
+        blockExpiration = block.number + (daysValid * 86400 / 15);
     }
     
     function withdrawFunds (uint carolKey, uint bobKey) public notPaused() {
         require(keccak256(abi.encodePacked(carolKey, bobKey)) == keyHash, "Access denied"); 
-        uint amountDue = balances[msg.sender];
-        require(amountDue > 0, "Insufficient funds");
-        balances[msg.sender] = 0;
-        msg.sender.transfer(amountDue);
-        emit LogWithdrawal(msg.sender, amountDue);
+        require(block.number < blockExpiration);
+        msg.sender.transfer(address(this).balance);
+        emit LogWithdrawal(msg.sender, address(this).balance);
     }
 
     function kill () public onlyOwner {
-        uint refund = balances[carolAddress];
-        require(refund > 0, "No funds available");
-        balances[carolAddress] = 0;
-        emit LogKillExecuted(msg.sender, refund);
-        msg.sender.transfer(refund);
+        msg.sender.transfer(address(this).balance);
+        emit LogKillExecuted(msg.sender, address(this).balance);
     }
 }
