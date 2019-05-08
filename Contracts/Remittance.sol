@@ -19,11 +19,12 @@ contract Remittance is Pausable {
     function withdrawFunds (uint carolKey, uint bobKey) public notPaused() {
         require(keccak256(abi.encodePacked(carolKey, bobKey)) == keyHash, "Access denied"); 
         require(block.number < blockExpiration);
-        msg.sender.transfer(address(this).balance);
         emit LogWithdrawal(msg.sender, address(this).balance);
+        msg.sender.transfer(address(this).balance);
     }
 
     function kill () public onlyOwner {
+        require(block.number > blockExpiration);
         msg.sender.transfer(address(this).balance);
         emit LogKillExecuted(msg.sender, address(this).balance);
     }
