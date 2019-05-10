@@ -30,7 +30,7 @@ contract Remittance is Pausable {
         require(msg.value > fee, "Amount is less than remittance fee");
         uint remitID = remitCounter++;
         uint amount = msg.value.sub(fee);
-        uint expiration = block.number + (secondsValid / 15);
+        uint expiration = block.number.add((secondsValid.div(15)));
         remits[remitID] = Remit(msg.sender, recipient, amount, expiration, keyHash);
         emit LogCreateRemittance(remitID, msg.sender, recipient, amount, expiration);
     }
