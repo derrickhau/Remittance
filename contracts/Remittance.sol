@@ -16,8 +16,8 @@ contract Remittance is Pausable {
         blockExpiration = block.number + (secondsValid / 15);
     }
     
-    function withdrawFunds (uint carolKey, uint bobKey) public notPaused() {
-        require(keccak256(abi.encodePacked(carolKey, bobKey, msg.sender)) == keyHash, "Access denied"); 
+    function withdrawFunds (uint twoFA) public notPaused() {
+        require(keccak256(abi.encodePacked(twoFA, msg.sender)) == keyHash, "Access denied"); 
         require(block.number < blockExpiration);
         emit LogWithdrawal(msg.sender, address(this).balance);
         msg.sender.transfer(address(this).balance);
