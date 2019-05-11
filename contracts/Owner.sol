@@ -11,4 +11,8 @@ contract Owner {
     constructor () public {
         owner = msg.sender;
     }
+    
+    function transferOwnership (address newOwner) internal onlyOwner {
+        owner = newOwner;
+    }
 }

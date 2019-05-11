@@ -7,57 +7,83 @@ contract Remittance is Pausable {
     using SafeMath for uint;    
 
     struct Remit {
-        address sender;
+        address creator;
         address recipient;
         uint amount;
         uint expiration;
         bytes32 keyHash;
     }
-    
+
     mapping (uint => Remit) remits;
+    uint8 secondsPerBlock = 15;
     uint remitCounter;
     uint fee;
-    
-    event LogCreateRemittance(uint remitID, address indexed creator, address recipient, uint amount, uint expiration);
+    uint totalFees;
+
+    event LogCreateRemittance(uint remitID, address indexed creator,
+        address recipient, uint amount, uint expiration);
     event LogWithdrawal(uint remitID, address indexed receiver, uint amount);
     event LogSetFee(uint newFee);
-    event LogKillExecuted(address owner, uint refund);
+    event LogWithdrawFees(uint remitCounter, uint amountWithdrawn);
+    event LogClaimBackExecuted(address creator, address recipient, uint refund);
 
-    // keyHash generated offchain
-    constructor () public {}
-    
-    function createRemittance (address recipient, uint secondsValid, bytes32 keyHash) public payable {
+    constructor (uint initialFee) public {
+        setFee(initialFee);
+    }
+
+    function createKeyHash (uint twoFA, address recipient) pure external returns (bytes32 keyHash1) {
+        keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
+        return keyHash1;
+    }
+
+    function createRemittance (address recipient, uint secondsValid, bytes32 keyHash1) public payable notPaused() {
         require(msg.value > fee, "Amount is less than remittance fee");
         uint remitID = remitCounter++;
         uint amount = msg.value.sub(fee);
-        uint expiration = block.number.add((secondsValid.div(15)));
-        remits[remitID] = Remit(msg.sender, recipient, amount, expiration, keyHash);
+        totalFees = totalFees.add(fee);
+        uint expiration = block.number.add(secondsValid.div(secondsPerBlock));
+        bytes32 keyHash2 = keccak256(abi.encodePacked(remitID, keyHash1));
+        remits[remitID] = Remit({
+            creator: msg.sender,
+            recipient: recipient,
+            amount: amount,
+            expiration: expiration,
+            keyHash: keyHash2
+        });
         emit LogCreateRemittance(remitID, msg.sender, recipient, amount, expiration);
     }
-    
+
     function withdrawFunds (uint remitID, uint twoFA) public notPaused() {
-        require(keccak256(abi.encodePacked(twoFA, msg.sender)) == remits[remitID].keyHash, "Access denied"); 
-        require(block.number < remits[remitID].expiration);
+        bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, msg.sender));
+        require(keccak256(abi.encodePacked(remitID, keyHash1)) == remits[remitID].keyHash, "Access denied"); 
+        require(block.number <= remits[remitID].expiration);
         uint amountDue = remits[remitID].amount;
         require(amountDue > 0, "Insufficient funds");
         remits[remitID].amount = 0;
-        emit LogWithdrawal(remitID, msg.sender, remits[remitID].amount);
-        msg.sender.transfer(remits[remitID].amount);
+        emit LogWithdrawal(remitID, msg.sender, amountDue);
+        msg.sender.transfer(amountDue);
+    }
+
+    function claimBack (uint remitID) public notPaused() {
+        require(msg.sender == remits[remitID].creator, "Restricted access, creator only");
+        require(block.number > remits[remitID].expiration, "Disabled until expiration");
+        uint amountDue = remits[remitID].amount;
+        require(amountDue > 0, "Insufficient funds");
+        remits[remitID].amount = 0;
+        emit LogClaimBackExecuted(msg.sender, remits[remitID].recipient, amountDue);
+        msg.sender.transfer(amountDue);
     }
 
     function setFee (uint newFee) public onlyOwner() {
         fee = newFee;
         emit LogSetFee(newFee);
     }
-    
+
     function withdrawFees () private onlyOwner {
-        msg.sender.transfer(address(this).balance);
-    }
-    
-    function kill (uint remitID) public {
-        require(msg.sender == remits[remitID].sender, "Restricted access, creator only");
-        require(block.number > remits[remitID].expiration, "Kill disabled until expiration");
-        msg.sender.transfer(address(this).balance);
-        emit LogKillExecuted(msg.sender, remits[remitID].amount);
+        require(totalFees > 0, "Insufficient funds");
+        uint amountDue = totalFees;
+        totalFees = 0;
+        emit LogWithdrawFees(remitCounter, amountDue);
+        msg.sender.transfer(amountDue);
     }
 }
