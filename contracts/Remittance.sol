@@ -7,7 +7,7 @@ contract Remittance is Pausable {
     using SafeMath for uint;    
 
     struct Remit {
-        address creator;
+        address sender;
         address recipient;
         uint amount;
         uint expiration;
@@ -20,16 +20,17 @@ contract Remittance is Pausable {
     uint fee;
     uint totalFees;
 
-    event LogCreateRemittance(uint remitID, address indexed creator,
+    event LogCreateRemittance(uint remitID, address indexed sender,
         address recipient, uint amount, uint expiration);
     event LogWithdrawal(uint remitID, address indexed receiver, uint amount);
     event LogSetFee(uint newFee);
     event LogWithdrawFees(uint remitCounter, uint amountWithdrawn);
-    event LogClaimBackExecuted(address creator, address recipient, uint refund);
+    event LogClaimBackExecuted(address sender, address recipient, uint refund);
 
-    constructor (uint initialFee) public {
+    constructor (uint initialFee, bool paused) Pausable(paused) public {
         setFee(initialFee);
     }
+
 
     function createKeyHash (uint twoFA, address recipient) pure external returns (bytes32 keyHash1) {
         keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
@@ -44,7 +45,7 @@ contract Remittance is Pausable {
         uint expiration = block.number.add(secondsValid.div(secondsPerBlock));
         bytes32 keyHash2 = keccak256(abi.encodePacked(remitID, keyHash1));
         remits[remitID] = Remit({
-            creator: msg.sender,
+            sender: msg.sender,
             recipient: recipient,
             amount: amount,
             expiration: expiration,
@@ -65,7 +66,7 @@ contract Remittance is Pausable {
     }
 
     function claimBack (uint remitID) public notPaused() {
-        require(msg.sender == remits[remitID].creator, "Restricted access, creator only");
+        require(msg.sender == remits[remitID].sender, "Restricted access, sender only");
         require(block.number > remits[remitID].expiration, "Disabled until expiration");
         uint amountDue = remits[remitID].amount;
         require(amountDue > 0, "Insufficient funds");
