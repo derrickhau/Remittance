@@ -15,7 +15,7 @@ contract Remittance is Pausable {
     }
 
     mapping (uint => Remit) remits;
-    uint8 secondsPerBlock = 15;
+    uint8 constant secondsPerBlock = 15;
     uint remitCounter;
     uint fee;
     uint totalFees;
@@ -23,7 +23,7 @@ contract Remittance is Pausable {
     event LogCreateRemittance(uint remitID, address indexed sender,
         address recipient, uint amount, uint expiration);
     event LogWithdrawal(uint remitID, address indexed receiver, uint amount);
-    event LogSetFee(uint newFee);
+    event LogSetFee(address setter, uint newFee);
     event LogWithdrawFees(uint remitCounter, uint amountWithdrawn);
     event LogClaimBackExecuted(address sender, address recipient, uint refund);
 
@@ -32,9 +32,9 @@ contract Remittance is Pausable {
     }
 
 
-    function createKeyHash (uint twoFA, address recipient) pure external returns (bytes32 keyHash1) {
-        keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
-        return keyHash1;
+    function createKeyHash (address recipient) view external{
+        bytes32 twoFA = keccak256(abi.encodePacked(block.timestamp, block.difficulty));
+        bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
     }
 
     function createRemittance (address recipient, uint secondsValid, bytes32 keyHash1) public payable notPaused() {
@@ -77,7 +77,7 @@ contract Remittance is Pausable {
 
     function setFee (uint newFee) public onlyOwner() {
         fee = newFee;
-        emit LogSetFee(newFee);
+        emit LogSetFee(msg.sender, newFee);
     }
 
     function withdrawFees () private onlyOwner {

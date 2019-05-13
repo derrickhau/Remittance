@@ -2,6 +2,8 @@ pragma solidity ^0.5.0;
 
 contract Owner {
     address private owner;
+    
+    event LogTransferOwnership (address previousOwner, address newOwner);
 
     modifier onlyOwner() {
         require (msg.sender == owner, "Restricted access, owner only");
@@ -15,6 +17,7 @@ contract Owner {
     function getOwner() public view returns (address) { return owner; }
     
     function transferOwnership (address newOwner) internal onlyOwner {
+        emit LogTransferOwnership (owner, newOwner);
         owner = newOwner;
     }
 }
