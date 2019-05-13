@@ -12,6 +12,8 @@ contract Owner {
         owner = msg.sender;
     }
     
+    function getOwner() public view returns (address) { return owner; }
+    
     function transferOwnership (address newOwner) internal onlyOwner {
         owner = newOwner;
     }
