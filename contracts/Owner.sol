@@ -17,6 +17,7 @@ contract Owner {
     function getOwner() public view returns (address) { return owner; }
     
     function transferOwnership (address newOwner) internal onlyOwner {
+        require(newOwner != address(0), "Invalid address");
         emit LogTransferOwnership (owner, newOwner);
         owner = newOwner;
     }
