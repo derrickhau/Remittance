@@ -8,13 +8,14 @@ contract Remittance is Pausable {
 
     struct Remit {
         address sender;
-        address recipient;
         uint amount;
         uint expiration;
         bytes32 keyHash;
     }
 
     mapping (uint => Remit) remits;
+    mapping (bytes32 => bool) keyHashUsed;
+    
     uint8 constant secondsPerBlock = 15;
     uint remitCounter;
     uint fee;
@@ -25,7 +26,7 @@ contract Remittance is Pausable {
     event LogWithdrawal(uint remitID, address indexed receiver, uint amount);
     event LogSetFee(address setter, uint newFee);
     event LogWithdrawFees(uint remitCounter, uint amountWithdrawn);
-    event LogClaimBackExecuted(address sender, address recipient, uint refund);
+    event LogClaimBackExecuted(address sender, uint refund);
 
     constructor (uint initialFee, bool paused) Pausable(paused) public {
         setFee(initialFee);
@@ -39,14 +40,15 @@ contract Remittance is Pausable {
 
     function createRemittance (address recipient, uint secondsValid, bytes32 keyHash1) public payable notPaused() {
         require(msg.value > fee, "Amount is less than remittance fee");
+        require(keyHashUsed[keyHash1] == false, "Duplicate keyHash");
+        keyHashUsed[keyHash1] = true;
         uint remitID = remitCounter++;
         uint amount = msg.value.sub(fee);
         totalFees = totalFees.add(fee);
         uint expiration = block.number.add(secondsValid.div(secondsPerBlock));
-        bytes32 keyHash2 = keccak256(abi.encodePacked(remitID, keyHash1));
+        bytes32 keyHash2 = keccak256(abi.encodePacked(remitID, keyHash1, address(this)));
         remits[remitID] = Remit({
             sender: msg.sender,
-            recipient: recipient,
             amount: amount,
             expiration: expiration,
             keyHash: keyHash2
@@ -56,7 +58,7 @@ contract Remittance is Pausable {
 
     function withdrawFunds (uint remitID, uint twoFA) public notPaused() {
         bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, msg.sender));
-        require(keccak256(abi.encodePacked(remitID, keyHash1)) == remits[remitID].keyHash, "Access denied"); 
+        require(keccak256(abi.encodePacked(remitID, keyHash1, address(this))) == remits[remitID].keyHash, "Access denied"); 
         require(block.number <= remits[remitID].expiration);
         uint amountDue = remits[remitID].amount;
         require(amountDue > 0, "Insufficient funds");
@@ -71,7 +73,7 @@ contract Remittance is Pausable {
         uint amountDue = remits[remitID].amount;
         require(amountDue > 0, "Insufficient funds");
         remits[remitID].amount = 0;
-        emit LogClaimBackExecuted(msg.sender, remits[remitID].recipient, amountDue);
+        emit LogClaimBackExecuted(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
 
