@@ -32,21 +32,21 @@ contract Remittance is Pausable {
         setFee(initialFee);
     }
 
-
-    function createKeyHash (address recipient) view external{
-        bytes32 twoFA = keccak256(abi.encodePacked(block.timestamp, block.difficulty));
-        bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
+    function createKeyHash (address recipient) view external returns (bytes32 keyHash1, bytes32 twoFA) {
+        twoFA = keccak256(abi.encodePacked(block.timestamp, block.difficulty));
+        keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
+        return (keyHash1, twoFA);
     }
 
     function createRemittance (address recipient, uint secondsValid, bytes32 keyHash1) public payable notPaused() {
         require(msg.value > fee, "Amount is less than remittance fee");
-        require(keyHashUsed[keyHash1] == false, "Duplicate keyHash");
+        require(!keyHashUsed[keyHash1], "Duplicate keyHash");
         keyHashUsed[keyHash1] = true;
         uint remitID = remitCounter++;
         uint amount = msg.value.sub(fee);
         totalFees = totalFees.add(fee);
         uint expiration = block.number.add(secondsValid.div(secondsPerBlock));
-        bytes32 keyHash2 = keccak256(abi.encodePacked(remitID, keyHash1, address(this)));
+        bytes32 keyHash2 = keccak256(abi.encodePacked(keyHash1, address(this)));
         remits[remitID] = Remit({
             sender: msg.sender,
             amount: amount,
@@ -58,7 +58,7 @@ contract Remittance is Pausable {
 
     function withdrawFunds (uint remitID, uint twoFA) public notPaused() {
         bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, msg.sender));
-        require(keccak256(abi.encodePacked(remitID, keyHash1, address(this))) == remits[remitID].keyHash, "Access denied"); 
+        require(keccak256(abi.encodePacked(keyHash1, address(this))) == remits[remitID].keyHash, "Access denied"); 
         require(block.number <= remits[remitID].expiration);
         uint amountDue = remits[remitID].amount;
         require(amountDue > 0, "Insufficient funds");
