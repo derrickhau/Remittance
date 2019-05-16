@@ -13,66 +13,58 @@ contract Remittance is Pausable {
         bytes32 keyHash;
     }
 
-    mapping (uint => Remit) remits;
-    mapping (bytes32 => bool) keyHashUsed;
-    
+    mapping (bytes32 => Remit) remits;
     uint8 constant secondsPerBlock = 15;
-    uint remitCounter;
     uint fee;
     uint totalFees;
 
-    event LogCreateRemittance(uint remitID, address indexed sender,
+    event LogCreateRemittance(address indexed sender,
         address recipient, uint amount, uint expiration);
-    event LogWithdrawal(uint remitID, address indexed receiver, uint amount);
+    event LogWithdrawal(address indexed receiver, uint amount);
     event LogSetFee(address setter, uint newFee);
-    event LogWithdrawFees(uint remitCounter, uint amountWithdrawn);
     event LogClaimBackExecuted(address sender, uint refund);
+    event LogWithdrawFees(address sender, uint amountWithdrawn);
 
     constructor (uint initialFee, bool paused) Pausable(paused) public {
         setFee(initialFee);
     }
-
-    function createKeyHash (address recipient) view external returns (bytes32 keyHash1, bytes32 twoFA) {
-        twoFA = keccak256(abi.encodePacked(block.timestamp, block.difficulty));
-        keyHash1 = keccak256(abi.encodePacked(twoFA, recipient));
-        return (keyHash1, twoFA);
+    // Generated off-chain
+    function createKeyHash (address recipient, uint twoFA) pure external {
+        bytes32 keyHash1 = keccak256(abi.encodePacked(recipient, twoFA));
     }
 
-    function createRemittance (address recipient, uint secondsValid, bytes32 keyHash1) public payable notPaused() {
+    function createRemittance (address recipient, bytes32 keyHash1, uint secondsValid) public payable notPaused() {
         require(msg.value > fee, "Amount is less than remittance fee");
-        require(!keyHashUsed[keyHash1], "Duplicate keyHash");
-        keyHashUsed[keyHash1] = true;
-        uint remitID = remitCounter++;
+        require(remits[keyHash1].sender != msg.sender, "Duplicate twoFA");
         uint amount = msg.value.sub(fee);
         totalFees = totalFees.add(fee);
         uint expiration = block.number.add(secondsValid.div(secondsPerBlock));
         bytes32 keyHash2 = keccak256(abi.encodePacked(keyHash1, address(this)));
-        remits[remitID] = Remit({
+        remits[keyHash1] = Remit({
             sender: msg.sender,
             amount: amount,
             expiration: expiration,
             keyHash: keyHash2
         });
-        emit LogCreateRemittance(remitID, msg.sender, recipient, amount, expiration);
+        emit LogCreateRemittance(msg.sender, recipient, amount, expiration);
     }
 
-    function withdrawFunds (uint remitID, uint twoFA) public notPaused() {
-        bytes32 keyHash1 = keccak256(abi.encodePacked(twoFA, msg.sender));
-        require(keccak256(abi.encodePacked(keyHash1, address(this))) == remits[remitID].keyHash, "Access denied"); 
-        require(block.number <= remits[remitID].expiration);
-        uint amountDue = remits[remitID].amount;
+    function withdrawFunds (uint twoFA) public notPaused() {
+        bytes32 keyHash1 = keccak256(abi.encodePacked(msg.sender, twoFA));
+        require(keccak256(abi.encodePacked(keyHash1, address(this))) == remits[keyHash1].keyHash, "Access denied"); 
+        require(block.number <= remits[keyHash1].expiration);
+        uint amountDue = remits[keyHash1].amount;
         require(amountDue > 0, "Insufficient funds");
-        remits[remitID].amount = 0;
-        emit LogWithdrawal(remitID, msg.sender, amountDue);
+        remits[keyHash1].amount = 0;
+        emit LogWithdrawal(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
 
-    function claimBack (uint remitID) public notPaused() {
-        require(msg.sender == remits[remitID].sender, "Restricted access, sender only");
-        require(block.number > remits[remitID].expiration, "Disabled until expiration");
-        uint amountDue = remits[remitID].amount;
+    function claimBack (bytes32 keyHash1) public notPaused() {
+        require(block.number > remits[keyHash1].expiration, "Disabled until expiration");
+        uint amountDue = remits[keyHash1].amount;
         require(amountDue > 0, "Insufficient funds");
-        remits[remitID].amount = 0;
+        remits[keyHash1].amount = 0;
         emit LogClaimBackExecuted(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
@@ -86,7 +78,7 @@ contract Remittance is Pausable {
         require(totalFees > 0, "Insufficient funds");
         uint amountDue = totalFees;
         totalFees = 0;
-        emit LogWithdrawFees(remitCounter, amountDue);
+        emit LogWithdrawFees(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
 }

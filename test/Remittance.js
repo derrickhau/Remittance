@@ -15,8 +15,8 @@ contract("Remittance", accounts => {
 
 	it("Should successfully create all elements of struct", async function () {
 		const secondsInWeek = 604800;
-		const keyHash1 = ;
-		await instance.createRemittance(recipient, secondsInWeek, keyHash1, { from: sender });
-		
+		const keyHash1 = await instance.createKeyHash (recipient, 123).keyHash1;
+		console.log("keyHash1: ", keyHash1);
+		// await instance.createRemittance(recipient, secondsInWeek, keyHash1, { from: sender });
 	});
 });
