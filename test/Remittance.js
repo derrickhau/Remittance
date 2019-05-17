@@ -7,16 +7,24 @@ contract("Remittance", accounts => {
 		instance = await Remittance.new(0, false, { from: owner });
 	});
 
-	// it("Function createKeyHash should successfully create hash ", async function () {
-	// 	const twoFA = 123
-	// 	const keyHash = await instance.createKeyHash(twoFA, recipient, { from: sender });
-	// 	assert.equal(keyHash, keccak256(abi.encodePacked(twoFA, recipient)), "Failed to successfully create hash");
-	// });
-
 	it("Should successfully create all elements of struct", async function () {
+		const twoFA = 123;
 		const secondsInWeek = 604800;
-		const keyHash1 = await instance.createKeyHash (recipient, 123).keyHash1;
-		console.log("keyHash1: ", keyHash1);
-		// await instance.createRemittance(recipient, secondsInWeek, keyHash1, { from: sender });
+		const amountSent = 10000;
+		await instance.createKeyHash(recipient, twoFA).then(keyHash => keyHashTest = keyHash);
+		console.log("keyHashTest: ", keyHashTest);
+		const remitStruct = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
+			.Remit.call(keyHash);
+		// const remitStruct = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
+		// 	.remits.call(keyHash);
+		console.log("remitStruct: ", remitStruct[keyHash]);
+		console.log("remitStruct.sender: ", remitStruct[keyHash].sender);
+
+		// await instance.createKeyHash(recipient, twoFA)
+			// .then(await instance.createRemittance(keyHash, secondsInWeek, { from: sender, value: amountSent }))
+			// .then(assert.equal(remit[keyHash].sender, msg.sender, "Failed to successfully match sender"));
+		// assert.equal(remitStruct.amount, amountSent, "Failed to successfully match amount");
+		// assert.equal(remitStruct.expiration, , "Failed to successfully match expiration");
+		// assert.equal(remitStruct.keyHash, keccak256(abi.encodePacked(keyHash, address(this))), "Failed to successfully match keyHash");
 	});
 });

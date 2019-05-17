@@ -1,24 +1,41 @@
 pragma solidity ^0.5.0;
 
-import "./Owner.sol";
+import "./Ownable.sol";
 
-contract Pausable is Owner {
-    bool private contractPausedState;
+contract Pausable is Ownable {
+    bool private contractIsPaused;
 
-    event ContractPausedState (bool newState, address pausedBy);
+    event LogNewPausedState(bool indexed contractIsPaused, address indexed owner);
+    event LogSelfDestruct(address initiatedBy);
     
-    modifier notPaused() {
-        require (!contractPausedState, "Contract is paused");
+    modifier isRunning() {
+        require (!contractIsPaused, "Contract is paused");
         _;
     }
-
-    constructor (bool initialState) public {
-        contractPausedState = initialState;
+    
+    modifier isPaused() {
+        require (contractIsPaused, "Contract is running");
+        _;
+    }
+    
+    constructor(bool launchContractPaused) public {
+        contractIsPaused = launchContractPaused;
     }
 
-    function contractPaused(bool newState) public onlyOwner() {
-        require(newState != contractPausedState, "Redundant request, no change made");
-        contractPausedState = newState;
-        emit ContractPausedState (newState, msg.sender);
+    function getPausedState() public view returns (bool) { return contractIsPaused; }
+
+    function contractPaused() public isRunning onlyOwner {
+        contractIsPaused = true;
+        emit LogNewPausedState(contractIsPaused, msg.sender);
+    }
+    
+    function contractResume() public isPaused onlyOwner {
+        contractIsPaused = false;
+        emit LogNewPausedState(contractIsPaused, msg.sender);
+    }
+    
+    function kill() public isPaused onlyOwner {
+        emit LogSelfDestruct(msg.sender);
+        selfdestruct(msg.sender);
     }
 }
