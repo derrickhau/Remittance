@@ -16,9 +16,13 @@ contract Ownable {
     
     function getOwner() public view returns (address) { return owner; }
     
-    function transferOwnership (address newOwner) public onlyOwner {
+    function transferOwnership(address newOwner) public onlyOwner {
         require(newOwner != address(0), "Invalid address");
         emit LogTransferOwnership (owner, newOwner);
         owner = newOwner;
+    }
+    
+    function renounceOwnership() public onlyOwner {
+        owner = address(0);
     }
 }

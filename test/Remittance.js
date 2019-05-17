@@ -11,14 +11,16 @@ contract("Remittance", accounts => {
 		const twoFA = 123;
 		const secondsInWeek = 604800;
 		const amountSent = 10000;
-		await instance.createKeyHash(recipient, twoFA).then(keyHash => keyHashTest = keyHash);
+		await instance.createKeyHash(recipient, twoFA)
+			.then(keyHash => keyHashTest = keyHash);
 		console.log("keyHashTest: ", keyHashTest);
+		// await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
+			// .then(console.log("Remit.call(keyHashTest): ", Remit.call(keyHashTest)));
 		const remitStruct = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
-			.Remit.call(keyHash);
-		// const remitStruct = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
-		// 	.remits.call(keyHash);
-		console.log("remitStruct: ", remitStruct[keyHash]);
-		console.log("remitStruct.sender: ", remitStruct[keyHash].sender);
+			.methods.Remit(keyHashTest);
+
+			// .then(remits => { console.log("remits[keyHashTest]: ", remits[keyHashTest]) });
+		console.log("remitStruct.sender: ", remitStruct.sender);
 
 		// await instance.createKeyHash(recipient, twoFA)
 			// .then(await instance.createRemittance(keyHash, secondsInWeek, { from: sender, value: amountSent }))
