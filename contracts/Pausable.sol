@@ -6,7 +6,7 @@ contract Pausable is Ownable {
     bool private contractIsPaused;
 
     event LogNewPausedState(bool indexed contractIsPaused, address indexed owner);
-    // event LogSelfDestruct(address initiatedBy);
+    event LogSelfDestruct(address initiatedBy);
     
     modifier isRunning() {
         require (!contractIsPaused, "Contract is paused");
@@ -34,8 +34,8 @@ contract Pausable is Ownable {
         emit LogNewPausedState(contractIsPaused, msg.sender);
     }
     
-    // function kill() public isPaused onlyOwner {
-    //     emit LogSelfDestruct(msg.sender);
-    //     selfdestruct(msg.sender);
-    // }
+    function kill() public isPaused onlyOwner {
+        emit LogSelfDestruct(msg.sender);
+        selfdestruct(msg.sender);
+    }
 }

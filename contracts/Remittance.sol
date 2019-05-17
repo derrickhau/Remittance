@@ -12,12 +12,12 @@ contract Remittance is Pausable {
         uint expiration;
     }
     // keyhash => Remit struct
-    mapping (bytes32 => Remit) remits;
+    mapping (bytes32 => Remit) public remits;
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
     uint totalFees;
-    bool alive = true;
+    bool alive;
 
     event LogCreateRemittance(address indexed sender, uint amount, uint expiration);
     event LogWithdrawal(address indexed receiver, uint amount);
@@ -25,7 +25,7 @@ contract Remittance is Pausable {
     event LogSetFee(address indexed setter, uint newFee);
     event LogSetExpiration(address indexed setter, uint minExp, uint maxExp);
     event LogWithdrawFees(address indexed sender, uint amountWithdrawn);
-    event LogSelfDestruct(bool isAlive, address indexed owner);
+    event LogKillRemittanceContract(bool isAlive, address indexed owner);
 
     modifier isAlive() {
         require (alive, "Contract has been terminated");
@@ -33,9 +33,10 @@ contract Remittance is Pausable {
     }
     
     constructor (uint initialFee, bool paused) Pausable(paused) public {
+        alive = true;
         setFee(initialFee);
-        minExpiration = 900; // 15 minutes
-        maxExpiration = 2592000; // 30 days
+        minExpiration = 15 minutes;
+        maxExpiration = 30 days;
     }
     // Generated off-chain
     function createKeyHash (address recipient, uint twoFA) view external returns (bytes32 keyHash){
@@ -99,11 +100,8 @@ contract Remittance is Pausable {
         msg.sender.transfer(amountDue);
     }
     
-    function selfDestruct() public isPaused onlyOwner {
-        Pausable.contractResume();
-        emit LogSelfDestruct(false, msg.sender);
+    function killRemittanceContract() public onlyOwner {
+        emit LogKillRemittanceContract(false, msg.sender);
         alive = false;
-        withdrawFees();
-        Ownable.renounceOwnership();
     }
 }
