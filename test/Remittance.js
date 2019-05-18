@@ -11,13 +11,17 @@ contract("Remittance", accounts => {
 		const twoFA = 123;
 		const secondsInWeek = 604800;
 		const amountSent = 10000;
-		await instance.createKeyHash(recipient, twoFA)
-			.then(keyHash => keyHashTest = keyHash);
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		const remitStruct = await instance.remits(keyHashTest, { from: sender });
-		console.log("remitStruct: ", remitStruct);
-		assert.equal(remitStruct.sender, sender, "Failed to successfully match sender");
-		assert.equal(remitStruct.amount, amountSent, "Failed to successfully match amount");
-		assert.equal(remitStruct.expiration, secondsInWeek + block.timestamp, "Failed to successfully match expiration");
+
+        const blockObj = await web3.eth.getBlock('latest');
+        const timestamp = blockObj.timestamp;
+		const timePlusExp = timestamp + secondsInWeek;
+
+		assert.strictEqual(remitStruct.sender, sender, "Failed to successfully match sender");
+		assert.strictEqual(remitStruct.amount.toString(), amountSent.toString(), "Failed to successfully match amount");
+		assert.strictEqual(remitStruct.expiration.toString(), timePlusExp.toString(), "Failed to successfully match expiration");
 	});
 });
