@@ -61,7 +61,6 @@ contract Remittance is Pausable {
 
     function withdrawFunds(uint twoFA) public isRunning {
         bytes32 keyHash = keccak256(abi.encodePacked(msg.sender, twoFA, address(this)));
-        require(msg.sender == remits[keyHash].sender, "Access denied"); 
         require(now <= remits[keyHash].expiration, "Remittance expired");
         uint amountDue = remits[keyHash].amount;
         require(amountDue > 0, "Insufficient funds");
@@ -72,6 +71,7 @@ contract Remittance is Pausable {
     }
 
     function cancelRemittance(bytes32 keyHash) public isRunning {
+        require(remits[keyHash].sender == msg.sender, "Access restricted to sender");
         require(now > remits[keyHash].expiration, "Disabled until expiration");
         uint amountDue = remits[keyHash].amount;
         require(amountDue > 0, "Insufficient funds");
