@@ -1,3 +1,4 @@
+        const blockObj = await web3.eth.getBlock(eth.getBlockNumber);
 pragma solidity ^0.5.0;
 
 import "./SafeMath.sol";
@@ -46,6 +47,7 @@ contract Remittance is Pausable {
     function createRemittance (bytes32 keyHash, uint secondsValid) public payable isRunning isAlive {
         require(msg.value > fee, "Minumum send value not met");
         require(remits[keyHash].sender != msg.sender, "Duplicate twoFA");
+        require(remits[keyHash].amount == 0, "Duplicate remittance");
         require(secondsValid < maxExpiration, "Maximum expiration exceeded");
         require(secondsValid > minExpiration, "Minimum expiration not met");
         uint amount = msg.value.sub(fee);
