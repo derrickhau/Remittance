@@ -1,13 +1,28 @@
 const Remittance = artifacts.require("./Remittance.sol");
 const expectedExceptionPromise = require("./helpers/expected_exception_testRPC_and_geth.js");
 
+// Consolidate utils and helper folders once a working method is found
+// Method 1 FAIL
+// https://github.com/bruzzopa/Remittance/blob/master/test/remittance.test.js
 // web3.eth.advanceTime = require("../utils/advanceTime.js");
 // web3.eth.advanceBlock = require("../utils/advanceBlock.js");
-// const addEvmFxns = require("../utils/evm.js");
+
+// Method 2a FAIL
+// https://github.com/feamcor/blockstars_eth_remittance/blob/master/test/remittance.js
 // const truffleHelper = require("./helpers/truffleTestHelper");
 // const { advanceTime } = truffleHelper;
+// const { advanceBlock } = truffleHelper;
+// Method 2b FAIL
+// const { advanceTimeAndBlock } = truffleHelper;
 
+// Method 3 FAIL addEvmFxns(web3) in contract initialization
+// const addEvmFxns = require("../utils/evm.js");
 
+// Method 4 FAIL https://medium.com/fluidity/standing-the-time-of-test-b906fcc374a9
+// const AdvTimeAndBlock = require("../utils/AdvTimeAndBlock.js");
+
+// Method 5 FAIL
+// https://github.com/RoyalMist/Remittance/blob/master/test/remittance_spec.js#L9
 // const evmMethod = (method, params = []) => {
 //     return new Promise(function (resolve, reject) {
 //         const sendMethod = (web3.currentProvider.sendAsync) ? web3.currentProvider.sendAsync.bind(web3.currentProvider) : web3.currentProvider.send.bind(web3.currentProvider);
@@ -29,6 +44,8 @@ const expectedExceptionPromise = require("./helpers/expected_exception_testRPC_a
 //     });
 // };
 
+// Method 5 FAIL
+// https://github.com/RoyalMist/Remittance/blob/master/test/remittance_spec.js#L9
 // const increaseTime = async (amount) => {
 //     await evmMethod("evm_increaseTime", [Number(amount)]);
 //     await evmMethod("evm_mine");
@@ -51,8 +68,8 @@ contract("Remittance", accounts => {
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		const remitStruct = await instance.remits(keyHashTest, { from: sender });
 
-		const blockObj = await web3.eth.getBlock(eth.getBlockNumber);
-		console.log("blockObj: ", blockObj);
+		const currentBlock = await web3.eth.getBlockNumber();
+		const blockObj = await web3.eth.getBlock(currentBlock);		
 		const timestamp = blockObj.timestamp;
 		const timePlusExp = timestamp + secondsInWeek;
 
@@ -61,258 +78,312 @@ contract("Remittance", accounts => {
 		assert.strictEqual(remitStruct.expiration.toString(), timePlusExp.toString(), "Failed to successfully match expiration");
 	});
 
-	// it("Should prevent amount sent below minimum allowed", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const lowAmountSent = 0; // amount must be higher than fee
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	return await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: lowAmountSent })
-	// 		.then( () => Promise.reject(new Error('Minumum send value not met')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent amount sent below minimum allowed");
-	// });
+	it("Should prevent amount sent below minimum allowed", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const lowAmountSent = 0; // amount must be higher than fee
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		return await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: lowAmountSent })
+			.then( () => Promise.reject(new Error('Minumum send value not met')),
+			err => assert.instanceOf(err, Error), "Failed to prevent amount sent below minimum allowed");
+	});
 
-	// it("Should prevent entry with duplicate twoFA from same sender", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;		
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
-	// 	return await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
-	// 		.then( () => Promise.reject(new Error('Duplicate twoFA')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent duplicate twoFA");
-	// });
+	it("Should prevent entry with duplicate twoFA from same sender", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;		
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
+		return await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent })
+			.then( () => Promise.reject(new Error('Duplicate twoFA')),
+			err => assert.instanceOf(err, Error), "Failed to prevent duplicate twoFA");
+	});
 
-	// it("Should prevent expiration above maximum", async function () {
-	// 	const twoFA = 123;
-	// 	const maxExp = 2678400; // 31 days, max allowed is 30 days
-	// 	const amountSent = 10000;
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	return instance.createRemittance(keyHashTest, maxExp, { from: sender, value: amountSent })
-	// 		.then( () => Promise.reject(new Error('Maximum expiration exceeded')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent expiration above maximum");
-	// });
+	it("Should prevent expiration above maximum", async function () {
+		const twoFA = 123;
+		const maxExp = 2678400; // 31 days, max allowed is 30 days
+		const amountSent = 10000;
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		return instance.createRemittance(keyHashTest, maxExp, { from: sender, value: amountSent })
+			.then( () => Promise.reject(new Error('Maximum expiration exceeded')),
+			err => assert.instanceOf(err, Error), "Failed to prevent expiration above maximum");
+	});
 
-	// it("Should prevent expiration below minimum", async function () {
-	// 	const twoFA = 123;
-	// 	const minExp = 600; // 10 minutes, min allowed is 15 minutes
-	// 	const amountSent = 10000;
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	return instance.createRemittance(keyHashTest, minExp, { from: sender, value: amountSent })
-	// 		.then( () => Promise.reject(new Error('Minimum expiration not met')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent expiration below minimum");
-	// });
+	it("Should prevent expiration below minimum", async function () {
+		const twoFA = 123;
+		const minExp = 600; // 10 minutes, min allowed is 15 minutes
+		const amountSent = 10000;
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		return instance.createRemittance(keyHashTest, minExp, { from: sender, value: amountSent })
+			.then( () => Promise.reject(new Error('Minimum expiration not met')),
+			err => assert.instanceOf(err, Error), "Failed to prevent expiration below minimum");
+	});
 
-	// it("Should log createRemittance correctly", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
+	it("Should log createRemittance correctly", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
 
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	const txObject = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
-
-	// 	const blockObj = await web3.eth.getBlock('latest');
-	// 	const timestamp = blockObj.timestamp;
-	// 	const timePlusExp = timestamp + secondsInWeek;
-
-	// 	assert.strictEqual(txObject.logs[0].args.sender, sender, 
-	// 		"Failed to log withdrawal recipient correctly");
-	// 	assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(), 
-	// 		"Failed to log withdrawal amount correctly");
-	// 	assert.strictEqual(txObject.logs[0].args.expiration.toString(), timePlusExp.toString(), 
-	// 		"Failed to log withdrawal expiration correctly");
-	// });
-
-	// it("Should log withdrawal correctly", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
-
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
-	// 	const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
+		// Create remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		const txObject = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-	// 	assert.strictEqual(txObject.logs[0].args.receiver.toString(), recipient.toString(), 
-	// 		"Failed to log withdrawal recipient correctly");
-	// 	assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(), 
-	// 		"Failed to log withdrawal amount correctly");
-	// });
+		// Get current block/timestamp
+		const currentBlock = await web3.eth.getBlockNumber();
+		const blockObj = await web3.eth.getBlock(currentBlock);		
+		const timestamp = blockObj.timestamp;
+		const timePlusExp = timestamp + secondsInWeek;
 
-	// it("Should correctly calculate gas cost and withdrawal amount", async function () {
-	// 	const BN = web3.utils.BN;
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
+		assert.strictEqual(txObject.logs[0].args.sender, sender, 
+			"Failed to log withdrawal recipient correctly");
+		assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(), 
+			"Failed to log withdrawal amount correctly");
+		assert.strictEqual(txObject.logs[0].args.expiration.toString(), timePlusExp.toString(), 
+			"Failed to log withdrawal expiration correctly");
+	});
 
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
+	it("Should log withdrawal correctly", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
 		
-	// 	// Calculate withdrawal including gas costs
-	// 	const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
-	// 	const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
-	// 	const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
-	// 	console.log(txObject);
-	// 	console.log("txObject.receipt: ", txObject.receipt);
-	// 	const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
-	// 	const gasUsed = (await web3.eth.getTransactionReceipt(txObject.tx)).gasUsed;
-	// 	const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
+		// Create remittance		
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
+		const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
 		
-	// 	const postMinusWithdrawalAmountBN = new BN(postBalanceBN).sub(new BN(amountSent));
-	// 	const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+		assert.strictEqual(txObject.logs[0].args.receiver.toString(), recipient.toString(), 
+			"Failed to log withdrawal recipient correctly");
+		assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(), 
+			"Failed to log withdrawal amount correctly");
+	});
 
-	// 	assert.strictEqual(preBalanceBN.sub(postMinusWithdrawalAmountBN).toString(), totalGasCostBN.toString(),
-	// 		"Failed to accurately calculate gas cost of withdrawal");
-	// 	assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(),
-	// 		"Failed to log withdrawal amount correctly");
-	// 	assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
-	// 		"Failed to withdraw correct amount");
-	// });
+	it("Should correctly calculate gas cost and withdrawal amount", async function () {
+		const BN = web3.utils.BN;
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
 
-	// it("Should cancel remittance, withdraw funds by sender, prevent withdrawal by recipient", async function () {
-	// 	const BN = web3.utils.BN;
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
-
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
+		// Create remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-		// Adjust time to allow remittance to expire
-		// let blockObj = await web3.eth.getBlock('latest');
-		// let currentBlock = blockObj.number;
-		// let timestamp = blockObj.timestamp;
-		// console.log("currentBlock: ", currentBlock);
-		// console.log("timestamp: ", timestamp);
+		// Calculate withdrawal
+		const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
+		const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
+		const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
 
-	    // await web3.eth.advanceTime(secondsInWeek + 1);
-	    // await web3.eth.advanceBlock();
-        // await web3.evm.mine();
-        // await increaseTime(secondsInWeek + 1);
-	// 	await advanceTime(secondsInWeek + 1);
-
-
-       		    
-	// 	blockObj = await web3.eth.getBlock('latest');
-	// 	currentBlock = blockObj.number;
-	// 	timestamp = blockObj.timestamp;
-	// 	console.log("currentBlock: ", currentBlock);
-	// 	console.log("timestamp: ", timestamp);
-
-	// 	// Calculate withdrawal including gas costs
-	// 	const preBalanceBN = new BN(await web3.eth.getBalance(sender));
-	// 	console.log("1");
-	// 	const txObject = await instance.cancelRemittance(keyHashTest, { from: sender });
-	// 	console.log("2");
-	// 	const postBalanceBN = new BN(await web3.eth.getBalance(sender));		
-	// 	console.log("3");
+		// Calculate gas costs
+		const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
+		const gasUsed = txObject.receipt.gasUsed;
+		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
 		
-	// 	const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
-	// 	const gasUsed = (await web3.eth.getTransactionReceipt(txObject.tx)).gasUsed;
-	// 	const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
+		// Calculate ammount sent
+		const postMinusWithdrawalAmountBN = new BN(postBalanceBN).sub(new BN(amountSent));
+		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+
+		assert.strictEqual(preBalanceBN.sub(postMinusWithdrawalAmountBN).toString(), totalGasCostBN.toString(),
+			"Failed to accurately calculate gas cost of withdrawal");
+		assert.strictEqual(txObject.logs[0].args.amount.toString(), amountSent.toString(),
+			"Failed to log withdrawal amount correctly");
+		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
+			"Failed to withdraw correct amount");
+	});
+
+	// FAIL Can't advance time/block
+	it("Should cancel remittance, withdraw funds by sender, prevent withdrawal by recipient", async function () {
+		const BN = web3.utils.BN;
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
+
+		// Create Remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-	// 	const postMinusRefundBN = new BN(postBalanceBN).sub(new BN(amountSent));		
-	// 	const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+		// Timestamp1
+		const currentBlock1 = await web3.eth.getBlockNumber();
+		const blockObj1 = await web3.eth.getBlock(currentBlock1);
+		const timestamp1 = blockObj1.timestamp;
+		console.log("currentBlock1: ", currentBlock1);
+		console.log("timestamp1: ", timestamp1);
 
-	// 	console.log("preMinusPostMinusRefund: ", preBalanceBN.sub(postMinusRefundBN.toString()));
-	// 	console.log("totalGasCostBN: ", totalGasCostBN.toString());
+		// Advance time and block: 
+		// Method 1 FAIL
+		// await web3.eth.advanceTime(secondsInWeek + 1);
+		// await web3.eth.advanceBlock();
 
-	// 	console.log("logRefund: ", txObject.logs[0].args.refund.toString());
-	// 	console.log("amountSent: ", amountSent.toString());
+		// Method 2a FAIL 
+		// https://github.com/feamcor/blockstars_eth_remittance/blob/master/test/remittance.js
+		// await advanceTime(secondsInWeek + 1);
+		// await advanceBlock();
+		// Method 2b 
+		// await advanceTimeAndBlock (secondsInWeek + 1);
 
-	// 	console.log("preMinusPostMinusRefund: ", (postPlusGasBN.sub(preBalanceBN)).toString());
-	// 	console.log("amountSent: ", amountSent.toString());
+		// Method 3 FAIL
+		// addEvmFxns(web3).increaseTime(secondsInWeek + 1);
+		// await web3.evm.mine();
 
-	// 	assert.strictEqual(preBalanceBN.sub(postMinusRefundBN).toString(), totalGasCostBN.toString(),
-	// 		"Failed to accurately calculate gas cost of cancelRemittance");
-	// 	assert.strictEqual(txObject.logs[0].args.refund.toString(), amountSent.toString(),
-	// 		"Failed to log cancelRemittance amount correctly");
-	// 	assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
-	// 		"Failed to refund correct amount");
-	// });
+		// Method 4 FAIL https://medium.com/fluidity/standing-the-time-of-test-b906fcc374a9
+		// await AdvTimeAndBlock.advanceTimeAndBlock(secondsInWeek + 1);
 
-	// it("Should prevent withdrawal from wrong recipient and paused contract", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
+		// Method 5 FAIL https://github.com/RoyalMist/Remittance/blob/master/test/remittance_spec.js#L9
+		// await increaseTime(secondsInWeek + 1);
 
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
-	// 	return instance.withdrawFunds(twoFA, { from: sender })
-	// 		.then( () => Promise.reject(new Error('Remittance expired')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent withdrawal from wrong recipient");
+	    // Timestamp2
+		const currentBlock2 = await web3.eth.getBlockNumber();
+		const blockObj2 = await web3.eth.getBlock(currentBlock2);		
+		const timestamp2 = blockObj1.timestamp;
+		console.log("currentBlock2: ", currentBlock2);
+		console.log("timestamp3: ", timestamp2);
 
-	// 	await instance.contractPaused( { from: owner } );
-	// 	return instance.withdrawFunds(twoFA, { from: recipient })
-	// 		.then( () => Promise.reject(new Error('Contract is paused')),
-	// 		err => assert.instanceOf(err, Error), "Paused state failed to prevent withdrawal");
-	// });
+		// Cancel Remittance
+		const preBalanceBN = new BN(await web3.eth.getBalance(sender));
+		console.log("1");
+		const txObject = await instance.cancelRemittance(keyHashTest, { from: sender });
+		console.log("2");
+		const postBalanceBN = new BN(await web3.eth.getBalance(sender));		
+		console.log("3");
 
-	// it("Should allow withdrawal contract and prevent createRemittance after kill initiated", async function () {
-	// 	const BN = web3.utils.BN;
-	// 	const twoFA = 123;
-	// 	const twoFA2 = 456;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
-
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
+		// Calculate gas costs		
+		const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
+		const gasUsed = txObject.receipt.gasUsed;
+		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
 		
-	// 	await instance.killRemittanceContract( { from: owner } );
+		const postMinusRefundBN = new BN(postBalanceBN).sub(new BN(amountSent));		
+		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
 
-	// 	// Calculate withdrawal including gas costs
-	// 	const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
-	// 	const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
-	// 	const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
+		console.log("preMinusPostMinusRefund: ", preBalanceBN.sub(postMinusRefundBN.toString()));
+		console.log("totalGasCostBN: ", totalGasCostBN.toString());
+
+		console.log("logRefund: ", txObject.logs[0].args.refund.toString());
+		console.log("amountSent: ", amountSent.toString());
+
+		console.log("preMinusPostMinusRefund: ", (postPlusGasBN.sub(preBalanceBN)).toString());
+		console.log("amountSent: ", amountSent.toString());
+
+		assert.strictEqual(preBalanceBN.sub(postMinusRefundBN).toString(), totalGasCostBN.toString(),
+			"Failed to accurately calculate gas cost of cancelRemittance");
+		assert.strictEqual(txObject.logs[0].args.refund.toString(), amountSent.toString(),
+			"Failed to log cancelRemittance amount correctly");
+		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
+			"Failed to refund correct amount");
+	});
+
+	it("Should prevent withdrawal from wrong recipient and paused contract", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
 		
-	// 	const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
-	// 	const gasUsed = (await web3.eth.getTransactionReceipt(txObject.tx)).gasUsed;
-	// 	const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
-
-	// 	const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
-	// 	assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
-	// 		"Kill failed to allow successful withdrawal of correct amount");
+		// Create remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-	// 	// Attempt createRemittance with different twoFA
-	// 	const keyHashTest2 = await instance.createKeyHash(recipient, twoFA2);
-	// 	return await instance.createRemittance(keyHashTest2, secondsInWeek, { from: sender, value: amountSent })
-	// 		.then( () => Promise.reject(new Error('Contract has been terminated')),
-	// 		err => assert.instanceOf(err, Error), "Kill failed to prevent createRemittance");
-	// });
+		// Withdraw funds
+		return instance.withdrawFunds(twoFA, { from: sender })
+			.then( () => Promise.reject(new Error('Remittance expired')),
+			err => assert.instanceOf(err, Error), "Failed to prevent withdrawal from wrong recipient");
 
-	// it("Should successfully transfer ownership, set new fees, and withdraw fees correctly", async function () {
-	// 	// All three are combined because the default fees are zero
-	// 	// Transfer ownership to recipient because owner is coinbase and interfering with calculation
-	// 	const BN = web3.utils.BN;
-	// 	const newFee = 1;
-	// 	const twoFA = 123;
-	// 	const twoFA2 = 456;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent = 10000;
+		// Pause and attempt withdrawal
+		await instance.contractPaused( { from: owner } );
+		return instance.withdrawFunds(twoFA, { from: recipient })
+			.then( () => Promise.reject(new Error('Contract is paused')),
+			err => assert.instanceOf(err, Error), "Paused state failed to prevent withdrawal");
+	});
 
-	// 	await instance.transferOwnership(recipient, { from: owner } );
-	// 	await instance.setFee(newFee, { from: recipient } );
+	it("Should allow withdrawal contract and prevent createRemittance after kill initiated", async function () {
+		const BN = web3.utils.BN;
+		const twoFA = 123;
+		const twoFA2 = 456;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
+
+		// Create remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-	// 	// Remittance 1
-	// 	const keyHashTest = await instance.createKeyHash(owner, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });	
+		await instance.killRemittanceContract( { from: owner } );
+
+		// Calculate withdrawal including gas costs
+		const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
+		const txObject = await instance.withdrawFunds(twoFA, { from: recipient });
+		const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
 		
-	// 	// Remittance 2
-	// 	const keyHashTest2 = await instance.createKeyHash(owner, twoFA2);
-	// 	await instance.createRemittance(keyHashTest2, secondsInWeek, { from: sender, value: amountSent });
+		// Calculate gas costs
+		const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
+		const gasUsed = txObject.receipt.gasUsed;
+
+		// Calculate amount sent
+		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
+		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+
+		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
+			"Kill failed to allow successful withdrawal of correct amount");
 		
-	// 	// Calculate withdrawal including gas costs
-	// 	const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
+		// Attempt createRemittance with different twoFA
+		const keyHashTest2 = await instance.createKeyHash(recipient, twoFA2);
+		return await instance.createRemittance(keyHashTest2, secondsInWeek, { from: sender, value: amountSent })
+			.then( () => Promise.reject(new Error('Contract has been terminated')),
+			err => assert.instanceOf(err, Error), "Kill failed to prevent createRemittance");
+	});
 
-	// 	const txObject = await instance.withdrawFees( { from: recipient });
-	// 	const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
+	it("Should successfully transfer ownership, set new fees, and withdraw fees correctly", async function () {
+		// All three are combined because the default fees are zero
+		// Transfer ownership to recipient because owner is coinbase and interfering with calculation
+		const BN = web3.utils.BN;
+		const newFee = 1;
+		const twoFA = 123;
+		const twoFA2 = 456;
+		const secondsInWeek = 604800;
+		const amountSent = 10000;
 
-	// 	const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
-	// 	const gasUsed = (await web3.eth.getTransactionReceipt(txObject.tx)).gasUsed;
-	// 	const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
+		await instance.transferOwnership(recipient, { from: owner } );
+		await instance.setFee(newFee, { from: recipient } );
+		
+		// Remittance 1
+		const keyHashTest = await instance.createKeyHash(owner, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });	
+		
+		// Remittance 2
+		const keyHashTest2 = await instance.createKeyHash(owner, twoFA2);
+		await instance.createRemittance(keyHashTest2, secondsInWeek, { from: sender, value: amountSent });
+		
+		// Calculate withdrawal including gas costs
+		const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
+		const txObject = await instance.withdrawFees( { from: recipient });
+		const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
 
-	// 	const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
-	// 	assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), (newFee * 2).toString(),
-	// 		"Failed to successfully withdraw fees correctly");
-	// });
+	// 	// Calculate gas costs
+		const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
+		const gasUsed = txObject.receipt.gasUsed;
+		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
+
+		// Calculate fees
+		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), (newFee * 2).toString(),
+			"Failed to successfully withdraw fees correctly");
+	});
+
+	Method 1 PASS
+	it("Should prevent overwriting remittance", async function () {
+		const twoFA = 123;
+		const secondsInWeek = 604800;
+		const amountSent1 = 10000;
+		const amountSent2 = 10;
+
+		// Create remittance
+		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent1 });
+		
+		// Attempt to overwrite remittance
+		return await instance.createRemittance(keyHashTest, secondsInWeek, { from: owner, value: amountSent2 })
+			.then( () => Promise.reject(new Error('Duplicate remittance')),
+			err => assert.instanceOf(err, Error), "Failed to prevent overwriting remittance");
+	});
+
+	// Method 2 FAIL
+	// http://gist.github.com/xavierlepretre/d5583222fde52ddfbc58b7cfa0d2d0a9
+    // Error: Invalid number of parameters for "undefined". Got 1 expected 2!
 
 	// it("Should prevent overwriting remittance", async function () {
 	// 	const twoFA = 123;
@@ -320,19 +391,7 @@ contract("Remittance", accounts => {
 	// 	const amountSent1 = 10000;
 	// 	const amountSent2 = 10;
 
-	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
-	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent1 });
-	// 	return await instance.createRemittance(keyHashTest, secondsInWeek, { from: owner, value: amountSent2 })
-	// 		.then( () => Promise.reject(new Error('Duplicate remittance')),
-	// 		err => assert.instanceOf(err, Error), "Failed to prevent overwriting remittance");
-	// });
-
-	// it("Should prevent overwriting remittance", async function () {
-	// 	const twoFA = 123;
-	// 	const secondsInWeek = 604800;
-	// 	const amountSent1 = 10000;
-	// 	const amountSent2 = 10;
-
+	// 	// Create remittance
 	// 	const keyHashTest = await instance.createKeyHash(recipient, twoFA);
 	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent1 });
 

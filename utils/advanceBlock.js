@@ -1,3 +1,5 @@
+// Method 1 FAIL
+// https://github.com/bruzzopa/Remittance/blob/master/test/remittance.test.js
 module.exports = function advanceBlock() {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send({

@@ -1,4 +1,3 @@
-        const blockObj = await web3.eth.getBlock(eth.getBlockNumber);
 pragma solidity ^0.5.0;
 
 import "./SafeMath.sol";
@@ -12,12 +11,15 @@ contract Remittance is Pausable {
         uint amount;
         uint expiration;
     }
+    
     // keyhash => Remit struct
     mapping (bytes32 => Remit) public remits;
+    // Current Owner => FeeAccount struct
+    mapping (address => uint) public totalFees;
+    
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
-    uint totalFees;
     bool alive;
 
     event LogCreateRemittance(address indexed sender, uint amount, uint expiration);
@@ -51,7 +53,7 @@ contract Remittance is Pausable {
         require(secondsValid < maxExpiration, "Maximum expiration exceeded");
         require(secondsValid > minExpiration, "Minimum expiration not met");
         uint amount = msg.value.sub(fee);
-        totalFees = totalFees.add(fee);
+        totalFees[owner].add(fee);
         uint expiration = now.add(secondsValid);
         remits[keyHash] = Remit({
             sender: msg.sender,
@@ -95,9 +97,9 @@ contract Remittance is Pausable {
     }
 
     function withdrawFees() public onlyOwner {
-        require(totalFees > 0, "Insufficient funds");
-        uint amountDue = totalFees;
-        totalFees = 0;
+        require(totalFees[msg.sender] > 0, "Insufficient funds");
+        uint amountDue = totalFees[msg.sender];
+        totalFees[msg.sender] = 0;
         emit LogWithdrawFees(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }

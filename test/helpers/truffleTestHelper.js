@@ -1,3 +1,5 @@
+// Method 2
+// https://github.com/feamcor/blockstars_eth_remittance/blob/master/test/remittance.js
 const sleep = milliseconds => {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 };
