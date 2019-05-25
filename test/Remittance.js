@@ -67,12 +67,8 @@ contract("Remittance", accounts => {
 		
 	// 	await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 	// 	const remitStruct = await instance.remits(keyHashTest, { from: sender });
-
-	// 	const currentBlock = await web3.eth.getBlockNumber();
-	// 	const blockObj = await web3.eth.getBlock(currentBlock);		
-	// 	const timestamp = blockObj.timestamp;
-	// 	const timePlusExp = timestamp + secondsInWeek;
-
+	
+	// 	const timestamp = (await web3.eth.getBlock(txObj.receipt.blockNumber)).timestamp;	// 	const timePlusExp = timestamp + secondsInWeek;
 	// 	assert.strictEqual(remitStruct.sender, sender, "Failed to successfully match sender");
 	// 	assert.strictEqual(remitStruct.amount.toString(), amountSent.toString(), "Failed to successfully match amount");
 	// 	assert.strictEqual(remitStruct.expiration.toString(), timePlusExp.toString(), "Failed to successfully match expiration");
@@ -129,9 +125,7 @@ contract("Remittance", accounts => {
 	// 	const txObject = await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
 	// 	// Get current block/timestamp
-	// 	const currentBlock = await web3.eth.getBlockNumber();
-	// 	const blockObj = await web3.eth.getBlock(currentBlock);		
-	// 	const timestamp = blockObj.timestamp;
+	// 	const timestamp = (await web3.eth.getBlock(txObj.receipt.blockNumber)).timestamp;
 	// 	const timePlusExp = timestamp + secondsInWeek;
 
 	// 	assert.strictEqual(txObject.logs[0].args.sender, sender, 
@@ -202,9 +196,8 @@ contract("Remittance", accounts => {
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
 		// Timestamp1
+		const timestamp1 = (await web3.eth.getBlock(txObj.receipt.blockNumber)).timestamp;	// 	const timePlusExp = timestamp + secondsInWeek;
 		const currentBlock1 = await web3.eth.getBlockNumber();
-		const blockObj1 = await web3.eth.getBlock(currentBlock1);
-		const timestamp1 = blockObj1.timestamp;
 		console.log("currentBlock1: ", currentBlock1);
 		console.log("timestamp1: ", timestamp1);
 
@@ -245,9 +238,8 @@ contract("Remittance", accounts => {
 
 
 	    // Timestamp2
+		const timestamp2 = (await web3.eth.getBlock(txObj.receipt.blockNumber)).timestamp;	// 	const timePlusExp = timestamp + secondsInWeek;
 		const currentBlock2 = await web3.eth.getBlockNumber();
-		const blockObj2 = await web3.eth.getBlock(currentBlock2);		
-		const timestamp2 = blockObj1.timestamp;
 		console.log("currentBlock2: ", currentBlock2);
 		console.log("timestamp3: ", timestamp2);
 
@@ -384,6 +376,10 @@ contract("Remittance", accounts => {
 		const secondsInWeek = 604800;
 		const amountSent1 = 10000;
 		const amountSent2 = 10;
+
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: alice, value: amountSent });
+		await instance.createRemittance(keyHashTest, secondsInWeek, { from: bob, value: 1 });
+
 
 		// Create remittance
 		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
