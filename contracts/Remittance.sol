@@ -48,7 +48,6 @@ contract Remittance is Pausable {
 
     function createRemittance (bytes32 keyHash, uint secondsValid) public payable isRunning isAlive {
         require(msg.value > fee, "Minumum send value not met");
-        require(remits[keyHash].sender != msg.sender, "Duplicate twoFA");
         require(remits[keyHash].sender == address(0), "Duplicate twoFA");
         require(secondsValid < maxExpiration, "Maximum expiration exceeded");
         require(secondsValid > minExpiration, "Minimum expiration not met");
