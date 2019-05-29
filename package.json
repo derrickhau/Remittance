@@ -1,0 +1,34 @@
+{
+  "name": "remittance",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/derrickhau/Remittance.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/derrickhau/Remittance/issues"
+  },
+  "homepage": "https://github.com/derrickhau/Remittance#readme",
+  "devDependencies": {
+    "create-html": "^4.1.0",
+    "truffle": "^5.0.8",
+    "webpack": "^4.32.2",
+    "webpack-cli": "^3.3.2"
+  },
+  "dependencies": {
+    "bluebird": "^3.5.5",
+    "jquery": "^3.4.1",
+    "truffle-contract": "^4.0.17",
+    "web3": "^1.0.0-beta.37"
+  }
+}

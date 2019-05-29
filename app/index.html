@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<title>Remittance UI</title>
+<meta charset="utf-8">
+
+</head>
+<body>
+	<h1>Remittance</h1>
+	<div>You have <span id="balance">Loading...</span> Wei</div>
+	<br>
+	<div>
+	    Create 
+	    	<br> 
+	    	<input display="To: " name="recipient" type="address" placeholder="Recipient Address" />
+	    	<br> 
+	    	<input name="twoFA" type="text" placeholder="Secret Code" />
+	    	<br>
+	    	<input name="Expiration" type="number" placeholder="Time in seconds" />	    
+	    	<br>
+	    	<input name="Amount" type="number" placeholder="Amount in Wei" />
+	    	<br>
+	    	<button id="createRemittance">Create</button>
+	</div>
+	<br>
+	<div>
+	    Withdraw
+	    	<br> 
+	    	<input name="2FA" type="text" placeholder="Secret Code" />
+	    	<br>
+		    <button id="withdrawFunds">Withdraw</button>
+	</div>
+	<br>
+	<div>
+	    Cancel
+	    	<br> 
+	    	<input name="Key Hash" type="bytes32" placeholder="Key Hash" />
+	    	<br>
+		    <button id="cancelRemittance">Cancel</button>
+	</div>
+	<div id="status"></div>
+
+
+	<script src="js/app.js"></script>
+
+</body>
+</html>

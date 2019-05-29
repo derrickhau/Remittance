@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 import "./Ownable.sol";
 
 contract Pausable is Ownable {
-    bool private contractIsPaused;
+    bool internal contractIsPaused;
 
     event LogNewPausedState(bool indexed contractIsPaused, address indexed owner);
     event LogSelfDestruct(address initiatedBy);
