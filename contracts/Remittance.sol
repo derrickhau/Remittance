@@ -48,7 +48,7 @@ contract Remittance is Pausable {
         return(keccak256(abi.encodePacked(recipient, twoFA, address(this))));
     }
 
-    function createRemittance (bytes32 keyHash, uint secondsValid) public payable isRunning isAlive {
+    function createRemittance (bytes32 keyHash, uint secondsValid) public payable whenRunning isAlive {
         require(msg.value > fee, "Minumum send value not met");
         require(remits[keyHash].sender == address(0), "Duplicate remittance");
         require(secondsValid <= maxExpiration, "Maximum expiration exceeded");
@@ -64,7 +64,7 @@ contract Remittance is Pausable {
         emit LogCreateRemittance(msg.sender, amount, expiration);
     }
 
-    function withdrawFunds(uint twoFA) public isRunning {
+    function withdrawFunds(uint twoFA) public whenRunning {
         bytes32 keyHash = keccak256(abi.encodePacked(msg.sender, twoFA, address(this)));
         require(now <= remits[keyHash].expiration, "Remittance expired");
         uint amountDue = remits[keyHash].amount;
@@ -75,7 +75,7 @@ contract Remittance is Pausable {
         msg.sender.transfer(amountDue);
     }
 
-    function cancelRemittance(bytes32 keyHash) public isRunning {
+    function cancelRemittance(bytes32 keyHash) public whenRunning {
         require(remits[keyHash].sender == msg.sender, "Access restricted to sender");
         require(now > remits[keyHash].expiration, "Disabled until expiration");
         uint amountDue = remits[keyHash].amount;
@@ -99,9 +99,10 @@ contract Remittance is Pausable {
     }
 
     function withdrawFees() public onlyOwner {
-        require(totalFees[msg.sender] > 0, "Insufficient funds");
+        uint _totalFees = totalFees[msg.sender];
+        require(_totalFees > 0, "Insufficient funds");
         uint amountDue = totalFees[msg.sender];
-        totalFees[msg.sender] = 0;
+        _totalFees = 0;
         emit LogWithdrawFees(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }

@@ -3,17 +3,17 @@ pragma solidity ^0.5.0;
 import "./Ownable.sol";
 
 contract Pausable is Ownable {
-    bool internal contractIsPaused;
+    bool private contractIsPaused;
 
     event LogNewPausedState(bool indexed contractIsPaused, address indexed owner);
     event LogSelfDestruct(address initiatedBy);
     
-    modifier isRunning() {
+    modifier whenRunning() {
         require (!contractIsPaused, "Contract is paused");
         _;
     }
     
-    modifier isPaused() {
+    modifier whenPaused() {
         require (contractIsPaused, "Contract is running");
         _;
     }
@@ -22,19 +22,19 @@ contract Pausable is Ownable {
         contractIsPaused = launchContractPaused;
     }
 
-    function getPausedState() public view returns (bool) { return contractIsPaused; }
+    function isPaused() public view returns (bool) { return contractIsPaused; }
 
-    function contractPaused() public isRunning onlyOwner {
+    function contractPaused() public whenRunning onlyOwner {
         contractIsPaused = true;
         emit LogNewPausedState(contractIsPaused, msg.sender);
     }
     
-    function contractResume() public isPaused onlyOwner {
+    function contractResume() public whenPaused onlyOwner {
         contractIsPaused = false;
         emit LogNewPausedState(contractIsPaused, msg.sender);
     }
     
-    function kill() public isPaused onlyOwner {
+    function kill() public whenPaused onlyOwner {
         emit LogSelfDestruct(msg.sender);
         selfdestruct(msg.sender);
     }
