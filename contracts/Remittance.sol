@@ -17,6 +17,7 @@ contract Remittance is Pausable {
     // Current Owner => FeeAccount struct
     mapping (address => uint) public totalFees;
     
+    address owner;
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
@@ -43,14 +44,15 @@ contract Remittance is Pausable {
     }
     // Generated off-chain
     function createKeyHash (address recipient, uint twoFA) view external returns (bytes32 keyHash){
+        require(recipient != address(0), "Valid address required");
         return(keccak256(abi.encodePacked(recipient, twoFA, address(this))));
     }
 
     function createRemittance (bytes32 keyHash, uint secondsValid) public payable isRunning isAlive {
         require(msg.value > fee, "Minumum send value not met");
-        require(remits[keyHash].sender == address(0), "Duplicate twoFA");
-        require(secondsValid < maxExpiration, "Maximum expiration exceeded");
-        require(secondsValid > minExpiration, "Minimum expiration not met");
+        require(remits[keyHash].sender == address(0), "Duplicate remittance");
+        require(secondsValid <= maxExpiration, "Maximum expiration exceeded");
+        require(secondsValid >= minExpiration, "Minimum expiration not met");
         uint amount = msg.value.sub(fee);
         totalFees[owner].add(fee);
         uint expiration = now.add(secondsValid);
@@ -90,6 +92,7 @@ contract Remittance is Pausable {
     }
     
     function setExpiration(uint min, uint max) public onlyOwner {
+        require(min < max, "Maximum must be greater than minimum");
         minExpiration = min;
         maxExpiration = max;
         emit LogSetExpiration(msg.sender, min, max);

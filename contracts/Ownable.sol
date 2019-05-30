@@ -1,9 +1,10 @@
 pragma solidity ^0.5.0;
 
 contract Ownable {
-    address internal owner;
+    address private owner;
     
     event LogTransferOwnership (address indexed previousOwner, address indexed newOwner);
+    event LogRenounceOwnership (address indexed owner);
 
     modifier onlyOwner() {
         require (msg.sender == owner, "Restricted access, owner only");
@@ -23,6 +24,7 @@ contract Ownable {
     }
     
     function renounceOwnership() public onlyOwner {
+        emit LogRenounceOwnership(owner);
         owner = address(0);
     }
 }
