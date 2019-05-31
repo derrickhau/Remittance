@@ -1,5 +1,6 @@
 const Remittance = artifacts.require("./Remittance.sol");
-const expectedExceptionPromise = require("./helpers/expected_exception_testRPC_and_geth.js");
+// Method B FAIL
+// const expectedExceptionPromise = require("./helpers/expected_exception_testRPC_and_geth.js");
 
 // Consolidate utils and helper folders once a working method is found
 // Method 1 FAIL
@@ -174,7 +175,7 @@ contract("Remittance", accounts => {
 			"Failed to withdraw correct amount");
 	});
 
-	// FAIL Can't advance time/block
+	// ***FAIL Can't advance time/block***
 	// it("Should cancel remittance, withdraw funds by sender, prevent withdrawal by recipient", async function () {
 	// 	const BN = web3.utils.BN;
 	// 	const twoFA = 123;
@@ -265,18 +266,18 @@ contract("Remittance", accounts => {
 	// 		"Failed to refund correct amount");
 	// });
 
-	it("Should prevent withdrawal from wrong recipient and paused contract", async function () {
+	it("Should prevent withdrawal by wrong recipient and paused contract", async function () {
 		const twoFA = 123;
 		const secondsInWeek = 604800;
 		const amountSent = 10000;
 		
-		// Create remittance
+		// Sender creates remittance
 		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
 		
-		// Withdraw funds
+		// Sender attempts withdrawal (Recipient is onlu user authorized to withdraw)
 		return instance.withdrawFunds(twoFA, { from: sender })
-			.then( () => Promise.reject(new Error('Remittance expired')),
+			.then( () => Promise.reject(new Error('Insufficient funds')),
 			err => assert.instanceOf(err, Error), "Failed to prevent withdrawal from wrong recipient");
 
 		// Pause and attempt withdrawal
@@ -296,8 +297,9 @@ contract("Remittance", accounts => {
 		// Create remittance
 		const keyHashTest = await instance.createKeyHash(recipient, twoFA);
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });
-		
-		await instance.killRemittanceContract( { from: owner } );
+
+		await instance.contractPaused( { from: owner } );
+		await instance.kill( { from: owner } );
 
 		// Calculate withdrawal including gas costs
 		const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
@@ -311,7 +313,6 @@ contract("Remittance", accounts => {
 		// Calculate amount sent
 		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
 		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
-
 		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), amountSent.toString(),
 			"Kill failed to allow successful withdrawal of correct amount");
 		
@@ -322,7 +323,7 @@ contract("Remittance", accounts => {
 			err => assert.instanceOf(err, Error), "Kill failed to prevent createRemittance");
 	});
 
-	it("Should successfully: 1) transfer ownership, 2) set new fees, and 3) withdraw fees correctly", async function () {
+	it("Should successfully: 1) transfer ownership, 2) set new fees, and 3) calculate withdrawal fees correctly", async function () {
 		// Since the default fees are set to zero, these three test are complementary
 		// Transfer ownership to recipient because owner is coinbase and interfering with calculation
 		const BN = web3.utils.BN;
@@ -332,29 +333,42 @@ contract("Remittance", accounts => {
 		const secondsInWeek = 604800;
 		const amountSent = 10000;
 
+		// 1) Transfer ownership
 		await instance.transferOwnership(recipient, { from: owner } );
+		
+		// 2) Set new fees
 		await instance.setFee(newFee, { from: recipient } );
 		
 		// Remittance 1
 		const keyHashTest = await instance.createKeyHash(owner, twoFA);
 		await instance.createRemittance(keyHashTest, secondsInWeek, { from: sender, value: amountSent });	
 		
-		// Remittance 2
-		const keyHashTest2 = await instance.createKeyHash(owner, twoFA2);
-		await instance.createRemittance(keyHashTest2, secondsInWeek, { from: sender, value: amountSent });
-		
-		// Calculate withdrawal including gas costs
+		// 3) Calculate withdrawal fees correctly
 		const preBalanceBN = new BN(await web3.eth.getBalance(recipient));
+		console.log("6");
 		const txObject = await instance.withdrawFees( { from: recipient });
+		console.log("7");
 		const postBalanceBN = new BN(await web3.eth.getBalance(recipient));		
 
-	// 	// Calculate gas costs
+		// Calculate gas costs
 		const gasPrice = (await web3.eth.getTransaction(txObject.tx)).gasPrice;
 		const gasUsed = txObject.receipt.gasUsed;
 		const totalGasCostBN = new BN(gasPrice).mul(new BN(gasUsed));
 
 		// Calculate fees
 		const postPlusGasBN = new BN(postBalanceBN.add(totalGasCostBN));
+
+		console.log("owner: ", owner);
+		console.log("recipient: ", recipient);
+
+		console.log("fee: ", fee);
+		console.log("newFee: ", newFee);
+
+		console.log("postPlusGasBN.sub(preBalanceBN: ", (postPlusGasBN.sub(preBalanceBN)).toString());
+		console.log("(newFee * 2).toString(): ", (newFee * 2).toString());
+
+		assert.strictEqual(owner, recipient, "Failed to successfully transfer ownership to recipient");
+		assert.strictEqual(fee, newFee, "Failed to successfully set new fee");
 		assert.strictEqual((postPlusGasBN.sub(preBalanceBN)).toString(), (newFee * 2).toString(),
 			"Failed to successfully withdraw fees correctly");
 	});
@@ -374,7 +388,7 @@ contract("Remittance", accounts => {
 			err => assert.instanceOf(err, Error), "Failed to prevent duplicate twoFA");
 	});
 
-	// Method 1 PASS
+	// Method A PASS
 	it("Should prevent overwriting remittance", async function () {
 		const twoFA = 123;
 		const secondsInWeek = 604800;
@@ -391,7 +405,7 @@ contract("Remittance", accounts => {
 			err => assert.instanceOf(err, Error), "Failed to prevent overwriting remittance");
 	});
 
-	// Method 2 FAIL
+	// Method B FAIL
 	// http://gist.github.com/xavierlepretre/d5583222fde52ddfbc58b7cfa0d2d0a9
     // Error: Invalid number of parameters for "undefined". Got 1 expected 2!
 

@@ -21,7 +21,6 @@ contract Remittance is Pausable {
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
-    bool alive;
 
     event LogCreateRemittance(address indexed sender, uint amount, uint expiration);
     event LogWithdrawal(address indexed receiver, uint amount);
@@ -29,21 +28,14 @@ contract Remittance is Pausable {
     event LogSetFee(address indexed setter, uint newFee);
     event LogSetExpiration(address indexed setter, uint minExp, uint maxExp);
     event LogWithdrawFees(address indexed sender, uint amountWithdrawn);
-    event LogKillRemittanceContract(bool isAlive, address indexed owner);
-
-    modifier isAlive() {
-        require (alive, "Contract has been terminated");
-        _;
-    }
     
     constructor (uint initialFee, bool paused) Pausable(paused) public {
-        alive = true;
         setFee(initialFee);
         minExpiration = 15 minutes;
         maxExpiration = 30 days;
     }
     // Generated off-chain
-    function createKeyHash (address recipient, uint twoFA) view external returns (bytes32 keyHash){
+    function createKeyHash (address recipient, uint twoFA) view public returns (bytes32 keyHash){
         require(recipient != address(0), "Valid address required");
         return(keccak256(abi.encodePacked(recipient, twoFA, address(this))));
     }
@@ -65,10 +57,10 @@ contract Remittance is Pausable {
     }
 
     function withdrawFunds(uint twoFA) public whenRunning {
-        bytes32 keyHash = keccak256(abi.encodePacked(msg.sender, twoFA, address(this)));
-        require(now <= remits[keyHash].expiration, "Remittance expired");
+        bytes32 keyHash = createKeyHash(msg.sender, twoFA);
         uint amountDue = remits[keyHash].amount;
         require(amountDue > 0, "Insufficient funds");
+        require(now <= remits[keyHash].expiration, "Remittance expired");
         remits[keyHash].amount = 0;
         remits[keyHash].expiration = 0;
         emit LogWithdrawal(msg.sender, amountDue);
@@ -105,10 +97,5 @@ contract Remittance is Pausable {
         _totalFees = 0;
         emit LogWithdrawFees(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
-    }
-    
-    function killRemittanceContract() public onlyOwner {
-        emit LogKillRemittanceContract(false, msg.sender);
-        alive = false;
     }
 }
