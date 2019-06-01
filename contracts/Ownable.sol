@@ -20,7 +20,7 @@ contract Ownable {
     function getOwner() public view returns (address) { return owner; }
     
     function nominateNewOwner(address _newOwner) public onlyOwner {
-        require(newOwner != address(0), "Invalid address");
+        require(_newOwner != address(0), "Invalid address");
         emit LogNominateNewOwner (owner, newOwner);
         newOwner = _newOwner;
     }
