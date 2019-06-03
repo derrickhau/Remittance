@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 contract Ownable {
     address private owner;
     address private newOwner;
-    
+
     event LogNominateNewOwner (address indexed previousOwner, address indexed newOwner);
     event LogClaimOwnership (address indexed previousOwner, address indexed newOwner);
     event LogRenounceOwnership (address indexed owner);
@@ -20,7 +20,7 @@ contract Ownable {
     function getOwner() public view returns (address) { return owner; }
     
     function nominateNewOwner(address _newOwner) public onlyOwner {
-        require(newOwner != address(0), "Invalid address");
+        require(_newOwner != address(0), "Invalid address");
         emit LogNominateNewOwner (owner, newOwner);
         newOwner = _newOwner;
     }
@@ -30,6 +30,7 @@ contract Ownable {
         require(msg.sender == newOwner, "Access denied");
         emit LogClaimOwnership (owner, newOwner);
         owner = newOwner;
+        newOwner = address(0);
     }
     
     function renounceOwnership() public onlyOwner {

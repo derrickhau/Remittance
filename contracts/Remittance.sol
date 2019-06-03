@@ -31,12 +31,13 @@ contract Remittance is Pausable {
     
     constructor (uint initialFee, bool paused) Pausable(paused) public {
         setFee(initialFee);
-        minExpiration = 15 minutes;
-        maxExpiration = 30 days;
+        setExpiration(15 minutes, 30 days);
     }
+    
     // Generated off-chain
     function createKeyHash (address recipient, uint twoFA) view public returns (bytes32 keyHash){
         require(recipient != address(0), "Valid address required");
+        require(twoFA > 99, "twoFA must be at least 3 digits");
         return(keccak256(abi.encodePacked(recipient, twoFA, address(this))));
     }
 
@@ -77,7 +78,7 @@ contract Remittance is Pausable {
         emit LogCancelRemittance(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
-
+    
     function setFee(uint newFee) public onlyOwner {
         fee = newFee;
         emit LogSetFee(msg.sender, newFee);
@@ -91,10 +92,9 @@ contract Remittance is Pausable {
     }
 
     function withdrawFees() public onlyOwner {
-        uint _totalFees = totalFees[msg.sender];
-        require(_totalFees > 0, "Insufficient funds");
         uint amountDue = totalFees[msg.sender];
-        _totalFees = 0;
+        require(amountDue > 0, "Insufficient funds");
+        totalFees[msg.sender] = 0;
         emit LogWithdrawFees(msg.sender, amountDue);
         msg.sender.transfer(amountDue);
     }
