@@ -17,15 +17,14 @@ contract Remittance is Pausable {
     // Current Owner => FeeAccount struct
     mapping (address => uint) public totalFees;
     
-    address owner;
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
 
-    event LogCreateRemittance(address indexed sender, uint amount, uint expiration);
+    event LogCreateRemittance(address indexed sender, uint amount, uint expiration, uint currentFee, uint totalFeesCurrentOwner);
     event LogWithdrawal(address indexed receiver, uint amount);
     event LogCancelRemittance(address indexed sender, uint refund);
-    event LogSetFee(address indexed setter, uint newFee);
+    event LogSetFee(address indexed setter, uint oldFee, uint newFee);
     event LogSetExpiration(address indexed setter, uint minExp, uint maxExp);
     event LogWithdrawFees(address indexed sender, uint amountWithdrawn);
     
@@ -33,7 +32,6 @@ contract Remittance is Pausable {
         setFee(initialFee);
         setExpiration(15 minutes, 30 days);
     }
-    
     // Generated off-chain
     function createKeyHash (address recipient, uint twoFA) view public returns (bytes32 keyHash){
         require(recipient != address(0), "Valid address required");
@@ -47,14 +45,14 @@ contract Remittance is Pausable {
         require(secondsValid <= maxExpiration, "Maximum expiration exceeded");
         require(secondsValid >= minExpiration, "Minimum expiration not met");
         uint amount = msg.value.sub(fee);
-        totalFees[owner].add(fee);
+        totalFees[owner] = totalFees[owner].add(fee);
         uint expiration = now.add(secondsValid);
         remits[keyHash] = Remit({
             sender: msg.sender,
             amount: amount,
             expiration: expiration
         });
-        emit LogCreateRemittance(msg.sender, amount, expiration);
+        emit LogCreateRemittance(msg.sender, amount, expiration, fee, totalFees[owner]);
     }
 
     function withdrawFunds(uint twoFA) public whenRunning {
@@ -80,8 +78,8 @@ contract Remittance is Pausable {
     }
     
     function setFee(uint newFee) public onlyOwner {
+        emit LogSetFee(msg.sender, fee, newFee);
         fee = newFee;
-        emit LogSetFee(msg.sender, newFee);
     }
     
     function setExpiration(uint min, uint max) public onlyOwner {
