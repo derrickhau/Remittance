@@ -14,14 +14,14 @@ contract Remittance is Pausable {
     
     // keyhash => Remit struct
     mapping (bytes32 => Remit) public remits;
-    // Current Owner => FeeAccount struct
+    // Current Owner => totalFees
     mapping (address => uint) public totalFees;
     
     uint minExpiration; 
     uint maxExpiration;
     uint fee;
 
-    event LogCreateRemittance(address indexed sender, uint amount, uint expiration, uint currentFee, uint totalFeesCurrentOwner);
+    event LogCreateRemittance(address indexed sender, uint amount, uint expiration, bytes32 keyhash, uint currentFee, uint totalFeesCurrentOwner);
     event LogWithdrawal(address indexed receiver, uint amount);
     event LogCancelRemittance(address indexed sender, uint refund);
     event LogSetFee(address indexed setter, uint oldFee, uint newFee);
@@ -39,20 +39,23 @@ contract Remittance is Pausable {
         return(keccak256(abi.encodePacked(recipient, twoFA, address(this))));
     }
 
-    function createRemittance (bytes32 keyHash, uint secondsValid) public payable whenRunning isAlive {
-        require(msg.value > fee, "Minumum send value not met");
+    function createRemittance (bytes32 keyHash, uint secondsValid) public payable whenRunning whenAlive {
+        uint _fee = fee;
+        address _owner = getOwner();
+        uint preTotalFees = totalFees[_owner];
+        require(msg.value > _fee, "Minimum amount not met");
         require(remits[keyHash].sender == address(0), "Duplicate remittance");
         require(secondsValid <= maxExpiration, "Maximum expiration exceeded");
         require(secondsValid >= minExpiration, "Minimum expiration not met");
-        uint amount = msg.value.sub(fee);
-        totalFees[owner] = totalFees[owner].add(fee);
+        uint amount = msg.value.sub(_fee);
+        uint postTotalFees = totalFees[_owner] = preTotalFees.add(_fee);
         uint expiration = now.add(secondsValid);
         remits[keyHash] = Remit({
             sender: msg.sender,
             amount: amount,
             expiration: expiration
         });
-        emit LogCreateRemittance(msg.sender, amount, expiration, fee, totalFees[owner]);
+        emit LogCreateRemittance(msg.sender, amount, expiration, keyHash, _fee, postTotalFees);
     }
 
     function withdrawFunds(uint twoFA) public whenRunning {
@@ -68,7 +71,7 @@ contract Remittance is Pausable {
 
     function cancelRemittance(bytes32 keyHash) public whenRunning {
         require(remits[keyHash].sender == msg.sender, "Access restricted to sender");
-        require(now > remits[keyHash].expiration, "Disabled until expiration");
+
         uint amountDue = remits[keyHash].amount;
         require(amountDue > 0, "Insufficient funds");
         remits[keyHash].amount = 0;

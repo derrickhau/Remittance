@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 
 contract Ownable {
-    address owner;
+    address private owner;
     address private newOwner;
 
     event LogNominateNewOwner (address indexed previousOwner, address indexed newOwner);
@@ -16,9 +16,10 @@ contract Ownable {
     constructor () public {
         owner = msg.sender;
     }
-    
+    // Getters
     function getOwner() public view returns (address) { return owner; }
-    
+    function getNewOwner() public view returns (address) { return newOwner; }
+
     function nominateNewOwner(address _newOwner) public onlyOwner {
         require(_newOwner != address(0), "Invalid address");
         emit LogNominateNewOwner (owner, _newOwner);

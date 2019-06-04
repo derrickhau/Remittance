@@ -3,50 +3,51 @@ pragma solidity ^0.5.0;
 import "./Ownable.sol";
 
 contract Pausable is Ownable {
-    bool private alive;
-    bool private contractIsPaused;
+    bool private isAlive;
+    bool private isPaused;
 
     event LogNewPausedState(bool indexed contractIsPaused, address indexed owner);
     event LogSelfDestruct(address initiatedBy);
     
-    modifier isAlive() {
-        require (alive, "Contract has been terminated");
+    modifier whenAlive() {
+        require (isAlive, "Contract has been terminated");
         _;
     }
 
     modifier whenRunning() {
-        require (!contractIsPaused, "Contract is paused");
+        require (!isPaused, "Contract is paused");
         _;
     }
     
     modifier whenPaused() {
-        require (contractIsPaused, "Contract is running");
+        require (isPaused, "Contract is running");
         _;
     }
     
     constructor(bool launchContractPaused) public {
-        alive = true;
-        contractIsPaused = launchContractPaused;
+        isAlive = true;
+        isPaused = launchContractPaused;
     }
 
-    // Paused state getter function
-    function isPaused() public view returns (bool) { return contractIsPaused; }
+    // Getters
+    function getIsAlive() public view returns (bool) { return isAlive; }
+    function getIsPaused() public view returns (bool) { return isPaused; }
 
     // Reversible pause/unpause functions
-    function contractPaused() public whenRunning onlyOwner {
-        contractIsPaused = true;
-        emit LogNewPausedState(contractIsPaused, msg.sender);
+    function pauseContract() public whenRunning onlyOwner {
+        isPaused = true;
+        emit LogNewPausedState(isPaused, msg.sender);
     }
 
-    function contractResume() public whenPaused onlyOwner {
-        contractIsPaused = false;
-        emit LogNewPausedState(contractIsPaused, msg.sender);
+    function resumeContract() public whenPaused onlyOwner {
+        isPaused = false;
+        emit LogNewPausedState(isPaused, msg.sender);
     }
     
     // Irreversible pause function; pause is required to discourage accidental execution
     function kill() public whenPaused onlyOwner {
         emit LogSelfDestruct(msg.sender);
-        alive = false;
-        contractIsPaused = false;
+        isAlive = false;
+        isPaused = false;
     }
 }
