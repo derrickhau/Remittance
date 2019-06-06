@@ -40,19 +40,22 @@ contract Remittance is Pausable {
     }
 
     function createRemittance (bytes32 keyHash, uint secondsValid) public payable whenRunning whenAlive {
-        require(msg.value > fee, "Minimum amount not met");
+        uint _fee = fee;
+        address _owner = getOwner();
+        require(msg.value > _fee, "Minimum amount not met");
         require(remits[keyHash].sender == address(0), "Duplicate remittance");
         require(secondsValid <= maxExpiration, "Maximum expiration exceeded");
         require(secondsValid >= minExpiration, "Minimum expiration not met");
-        uint amount = msg.value.sub(fee);
-        totalFees[getOwner()] = totalFees[getOwner()].add(fee);
+        uint amount = msg.value.sub(_fee);
+        uint postTotalFees = totalFees[_owner].add(_fee);
+        totalFees[_owner] = postTotalFees;
         uint expiration = now.add(secondsValid);
         remits[keyHash] = Remit({
             sender: msg.sender,
             amount: amount,
             expiration: expiration
         });
-        emit LogCreateRemittance(msg.sender, amount, expiration, keyHash, fee, totalFees[getOwner()]);
+        emit LogCreateRemittance(msg.sender, amount, expiration, keyHash, _fee, postTotalFees);
     }
 
     function withdrawFunds(uint twoFA) public whenRunning {
